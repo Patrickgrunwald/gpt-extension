@@ -1,11 +1,9 @@
+import { loginUser, registerUser, getCurrentUser } from './src/firebase/auth.js';
+import { addFolder, getFolders, updateFolder, deleteFolder } from './src/firebase/db.js';
+
 // State management
 let folders = [];
-
-// Load folders from storage
-chrome.storage.local.get(['folders'], function(result) {
-  folders = result.folders || [];
-  renderFolders();
-});
+let currentUser = null;
 
 // DOM Elements
 const foldersList = document.getElementById('foldersList');
@@ -22,15 +20,55 @@ sortSelect.addEventListener('change', sortFolders);
 addFolderBtn.addEventListener('click', addNewFolder);
 closeBtn.addEventListener('click', () => window.close());
 
-loginBtn.addEventListener('click', () => {
-  // Implement login logic
-  alert('Login functionality to be implemented');
+loginBtn.addEventListener('click', async () => {
+  try {
+    const email = prompt('Enter your email:');
+    const password = prompt('Enter your password:');
+    
+    if (email && password) {
+      currentUser = await loginUser(email, password);
+      await loadFolders();
+      updateUI();
+    }
+  } catch (error) {
+    alert('Login failed: ' + error.message);
+  }
 });
 
-signupBtn.addEventListener('click', () => {
-  // Implement signup logic
-  alert('Signup functionality to be implemented');
+signupBtn.addEventListener('click', async () => {
+  try {
+    const email = prompt('Enter your email:');
+    const password = prompt('Enter your password:');
+    
+    if (email && password) {
+      currentUser = await registerUser(email, password);
+      updateUI();
+    }
+  } catch (error) {
+    alert('Sign up failed: ' + error.message);
+  }
 });
+
+async function loadFolders() {
+  if (currentUser) {
+    try {
+      folders = await getFolders(currentUser.uid);
+      renderFolders();
+    } catch (error) {
+      console.error('Error loading folders:', error);
+    }
+  }
+}
+
+function updateUI() {
+  if (currentUser) {
+    loginBtn.textContent = 'Logout';
+    signupBtn.style.display = 'none';
+  } else {
+    loginBtn.textContent = 'Login';
+    signupBtn.style.display = 'block';
+  }
+}
 
 function renderFolders() {
   foldersList.innerHTML = '';
@@ -82,18 +120,24 @@ function sortFolders() {
   renderFolders();
 }
 
-function addNewFolder() {
+async function addNewFolder() {
+  if (!currentUser) {
+    alert('Please login to create folders');
+    return;
+  }
+
   const name = prompt('Enter folder name:');
   if (name) {
-    const newFolder = {
-      id: Date.now(),
-      name,
-      chats: [],
-      createdAt: Date.now()
-    };
-    
-    folders.push(newFolder);
-    chrome.storage.local.set({ folders }, renderFolders);
+    try {
+      const newFolder = await addFolder(currentUser.uid, {
+        name,
+        chats: []
+      });
+      folders.push(newFolder);
+      renderFolders();
+    } catch (error) {
+      alert('Failed to create folder: ' + error.message);
+    }
   }
 }
 
