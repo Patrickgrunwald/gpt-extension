@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Chat Folders",
+  "version": "1.0",
+  "description": "Organize your chats into folders",
+  "permissions": ["storage"],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
